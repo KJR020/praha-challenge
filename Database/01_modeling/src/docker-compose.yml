@@ -1,0 +1,22 @@
+services:
+  postgres:
+    container_name: postgres
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # docker-initdb.dにファイルを配置すると、コンテナ起動時に自動で実行される
+      # https://atsum.in/linux/docker-postgres-init/
+      - ./DDL.sql:/docker-entrypoint-initdb.d/1-DDL.sql
+      - ./DML_master.sql:/docker-entrypoint-initdb.d/2-DML_master.sql
+      - ./DML_transaction.sql:/docker-entrypoint-initdb.d/3-DML_transaction.sql
+
+volumes:
+  postgres_data:
