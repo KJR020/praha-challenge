@@ -49,8 +49,8 @@ CREATE TABLE t_payment (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     order_id UUID NOT NULL,
     billing_amount INT NOT NULL,
-    received_amount INT NOT NULL,
-    paid_at TIMESTAMP NOT NULL,
+    received_amount INT,
+    paid_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES t_order(id)
@@ -87,6 +87,7 @@ CREATE TABLE t_order_item_option (
 
 CREATE TABLE m_menu_history (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    operation VARCHAR(10) NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
     menu_id UUID NOT NULL,
     menu_name VARCHAR(255) NOT NULL,
     category_id UUID NOT NULL,
@@ -96,8 +97,6 @@ CREATE TABLE m_menu_history (
 );
 
 -- インデックスを作成ß
-CREATE INDEX idx_m_menu_category_id ON m_menu (category_id);
-
 CREATE INDEX idx_m_set_menu_item_set_menu_id ON m_set_menu_item (set_menu_id);
 CREATE INDEX idx_m_set_menu_item_single_menu_id ON m_set_menu_item (single_menu_id);
 
@@ -107,9 +106,73 @@ CREATE INDEX idx_t_order_item_order_id ON t_order_item (order_id);
 CREATE INDEX idx_t_order_item_menu_id ON t_order_item (menu_id);
 
 CREATE INDEX idx_t_order_item_option_order_item_id ON t_order_item_option (order_item_id);
-CREATE INDEX idx_t_order_item_option_rice_size_id ON t_order_item_option (rice_size_id);
 
--- トリガー関数を作成
+-- メニュー履歴用のトリガー関数を作成
+CREATE OR REPLACE FUNCTION record_menu_history()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        INSERT INTO m_menu_history (
+            menu_id,
+            menu_name,
+            category_id,
+            category_name,
+            price,
+            operation
+        )
+        SELECT
+            OLD.id,
+            OLD.name,
+            OLD.category_id,
+            c.name,
+            OLD.price,
+            'DELETE'
+        FROM m_category c
+        WHERE c.id = OLD.category_id;
+        RETURN OLD;
+    ELSE
+        INSERT INTO m_menu_history (
+            menu_id,
+            menu_name,
+            category_id,
+            category_name,
+            price,
+            operation
+        )
+        SELECT
+            NEW.id,
+            NEW.name,
+            NEW.category_id,
+            c.name,
+            NEW.price,
+            TG_OP
+        FROM m_category c
+        WHERE c.id = NEW.category_id;
+        RETURN NEW;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- メニュー履歴用のトリガーを作成（INSERT用）
+CREATE TRIGGER trigger_menu_history_insert
+AFTER INSERT ON m_menu
+FOR EACH ROW
+EXECUTE FUNCTION record_menu_history();
+
+-- メニュー履歴用のトリガーを作成（UPDATE用）
+CREATE TRIGGER trigger_menu_history_update
+AFTER UPDATE ON m_menu
+FOR EACH ROW
+EXECUTE FUNCTION record_menu_history();
+
+-- メニュー履歴用のトリガーを作成（DELETE用）
+CREATE TRIGGER trigger_menu_history_delete
+AFTER DELETE ON m_menu
+FOR EACH ROW
+EXECUTE FUNCTION record_menu_history();
+
+-- updated_at更新の関数を作成
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -118,7 +181,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 特定のテーブルに対してトリガーを設定する関数を作成
+-- 特定のテーブルに対してupdate_atを更新するトリガーを設定する関数を作成
 CREATE OR REPLACE FUNCTION setup_update_trigger(table_name TEXT)
 RETURNS VOID AS $$
 BEGIN
