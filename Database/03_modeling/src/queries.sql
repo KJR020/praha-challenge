@@ -107,7 +107,7 @@ FROM
   JOIN directory_versions dir_v ON c_dir_v.version_id = dir_v.id
   JOIN directory_hierarchy dh ON dh.descendant_id = dv.parent_directory_id
 WHERE
-  dh.ancestor_id = 3
+  dh.ancestor_id = 2
 ORDER BY
   dv.created_at DESC;
 
