@@ -46,7 +46,7 @@ CREATE TABLE
 CREATE TABLE
   notification_schedules (
     task_id INTEGER PRIMARY KEY REFERENCES tasks (id) ON DELETE CASCADE,
-    next_notify_at TIMESTAMP NOT NULL,
+    scheduled_time TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );

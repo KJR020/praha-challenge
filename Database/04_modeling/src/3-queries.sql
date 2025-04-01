@@ -38,7 +38,7 @@ VALUES
 
 -- 2.4. 通知スケジュールの作成
 INSERT INTO
-  notification_schedules (task_id, next_notify_at)
+  notification_schedules (task_id, scheduled_time)
 VALUES
   (1, CURRENT_TIMESTAMP + INTERVAL '1 day');
 
@@ -53,7 +53,7 @@ SELECT
   t.message,
   nc.frequency_type,
   nc.frequency_value,
-  ns.next_notify_at
+  ns.scheduled_time
 FROM
   tasks t
   JOIN notification_configs nc ON t.id = nc.task_id
@@ -61,13 +61,13 @@ FROM
   JOIN task_statuses ts ON t.id = ts.task_id
 WHERE
   ts.is_completed = false
-  AND ns.next_notify_at <= CURRENT_TIMESTAMP + INTERVAL '1 hour'
-  AND ns.next_notify_at > CURRENT_TIMESTAMP;
+  AND ns.scheduled_time <= CURRENT_TIMESTAMP + INTERVAL '1 hour'
+  AND ns.scheduled_time > CURRENT_TIMESTAMP;
 
 -- 3.2. 次回通知時間の更新
 UPDATE notification_schedules
 SET
-  next_notify_at = next_notify_at + INTERVAL '1 day',
+  scheduled_time = scheduled_time + INTERVAL '1 day',
   updated_at = CURRENT_TIMESTAMP
 WHERE
   task_id = 1;
