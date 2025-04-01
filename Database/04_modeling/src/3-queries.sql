@@ -1,11 +1,12 @@
--- スラック連携登録時のクエリ
+-- 1. スラック連携登録時のトランザクション
+-- 1.1. ワークスペースの作成
 INSERT INTO
   workspaces (slack_app_token, slack_bot_token)
 VALUES
   ('HOGE_APP_TOKEN', 'HOGE_BOT_TOKEN');
 
--- タスク設定時のクエリ
--- 1. タスクの作成
+-- 2. タスク設定時のトランザクション
+-- 2.1. タスクの作成
 INSERT INTO
   tasks (
     workspace_id,
@@ -21,21 +22,28 @@ VALUES
     'recipient_slack_id',
     'channel_id',
     '通知メッセージ'
-  );
+  ) RETURNING id;
 
--- 2. 初回通知のスケジュールの設定
+-- 2.2. タスクステータスの初期設定
 INSERT INTO
-  task_schedules (
-    task_id,
-    type_name,
-    interval,
-    scheduled_time,
-    is_active
-  )
+  task_statuses (task_id, is_completed, completed_at)
 VALUES
-  (1, 'DAILY', 1, '2024-03-26 10:00:00', true);
+  (1, false, NULL);
 
--- 1hごとのバッチ通知のクエリ
+-- 2.3. 通知設定の作成
+INSERT INTO
+  notification_configs (task_id, frequency_type, frequency_value)
+VALUES
+  (1, 'DAILY', 1);
+
+-- 2.4. 通知スケジュールの作成
+INSERT INTO
+  notification_schedules (task_id, next_notify_at)
+VALUES
+  (1, CURRENT_TIMESTAMP + INTERVAL '1 day');
+
+-- 3. 1時間ごとのバッチ処理のトランザクション
+-- 3.1. 通知対象のタスクを取得
 SELECT
   t.id as task_id,
   t.workspace_id,
@@ -43,36 +51,32 @@ SELECT
   t.recipient_slack_id,
   t.channel_id,
   t.message,
-  ts.type_name,
-  ts.interval,
-  ts.scheduled_time
+  nc.frequency_type,
+  nc.frequency_value,
+  ns.next_notify_at
 FROM
   tasks t
-  JOIN task_schedules ts ON t.id = ts.task_id
+  JOIN notification_configs nc ON t.id = nc.task_id
+  JOIN notification_schedules ns ON t.id = ns.task_id
+  JOIN task_statuses ts ON t.id = ts.task_id
 WHERE
-  ts.is_active = true
-  AND ts.scheduled_time <= '2024-03-26 10:30:00'
-  AND ts.scheduled_time > '2024-03-26 09:30:00'
-  AND NOT EXISTS (
-    SELECT
-      1
-    FROM
-      message_logs ml
-    WHERE
-      ml.task_id = t.id
-      AND ml.message_type = 'completion'
-  );
+  ts.is_completed = false
+  AND ns.next_notify_at <= CURRENT_TIMESTAMP + INTERVAL '1 hour'
+  AND ns.next_notify_at > CURRENT_TIMESTAMP;
 
--- 完了時のタスク更新クエリ
--- 1. 完了ログの記録
-INSERT INTO
-  message_logs (task_id, message_type)
-VALUES
-  (1, 'COMPLETION');
-
--- 2. タスクの非アクティブ化
-UPDATE task_schedules
+-- 3.2. 次回通知時間の更新
+UPDATE notification_schedules
 SET
-  is_active = false
+  next_notify_at = next_notify_at + INTERVAL '1 day',
+  updated_at = CURRENT_TIMESTAMP
+WHERE
+  task_id = 1;
+
+-- 4. タスク完了時の更新トランザクション
+-- 4.1. 完了ステータスの更新
+UPDATE task_statuses
+SET
+  is_completed = true,
+  completed_at = CURRENT_TIMESTAMP
 WHERE
   task_id = 1;

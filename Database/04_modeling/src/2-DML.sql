@@ -29,23 +29,23 @@ VALUES
     '週次進捗報告が未提出です。penpen。'
   );
 
--- タスクスケジュール
+-- 通知設定
 INSERT INTO
-  task_schedules (
-    task_id,
-    type_name,
-    interval,
-    scheduled_time,
-    is_active
-  )
+  notification_configs (task_id, frequency_type, frequency_value)
 VALUES
-  (1, 'DAILY', 1, CURRENT_TIMESTAMP, true),
-  (2, 'WEEKLY', 1, CURRENT_TIMESTAMP, true);
+  (1, 'DAILY', 1),
+  (2, 'WEEKLY', 1);
 
--- サンプル送信済みメッセージログ
+-- 通知スケジュール
 INSERT INTO
-  message_logs (task_id, message_type)
+  notification_schedules (task_id, next_notify_at)
 VALUES
-  (1, 'REMINDER'),
-  (2, 'REMINDER'),
-  (2, 'COMPLETION');
+  (1, CURRENT_TIMESTAMP + INTERVAL '1 day'),
+  (2, CURRENT_TIMESTAMP + INTERVAL '7 days');
+
+-- タスクステータス
+INSERT INTO
+  task_statuses (task_id, is_completed, completed_at)
+VALUES
+  (1, false, NULL),
+  (2, false, NULL);
