@@ -105,7 +105,7 @@ VALUES
 INSERT INTO
   article_checkout_events (change_id, from_version_id, to_version_id)
 VALUES
-  (1, 3, 2);
+  (5, 3, 2);
 
 COMMIT;
 
