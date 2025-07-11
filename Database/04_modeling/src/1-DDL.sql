@@ -29,15 +29,12 @@ CREATE TABLE
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
--- 周期タイプ
-CREATE TYPE frequency_type AS ENUM ('DAILY', 'WEEKLY', 'MONTHLY');
-
 -- 通知設定
 CREATE TABLE
   notification_configs (
     id SERIAL PRIMARY KEY,
     task_id INTEGER NOT NULL REFERENCES tasks (id) ON DELETE CASCADE,
-    frequency_type frequency_type NOT NULL,
+    frequency_type VARCHAR(32) NOT NULL,
     frequency_value INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
